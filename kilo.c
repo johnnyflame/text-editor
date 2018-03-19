@@ -1,43 +1,97 @@
+/*** includes ***/
+
+#include <ctype.h>
+#include <errno.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <termios.h>
 #include <stdlib.h>
 
+/*** defines ***/
 
+#define CTRL_KEY(k) ((k) & 0x1f)
+
+
+/*** data ***/
 struct termios orig_termios;
 
-void disableRawMode(){
-  tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+/*** terminal ***/
+void die(const char *s){
+    perror(s);
+    exit(1);
 }
 
 
+void disableRawMode(){
+    if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1){
+        die("tscetattr");
+    }
+}
 
 void enableRawMode(){
+
+    if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1){
+        die("tscetattr");
+    }
  
 
-
-  tcgetattr(STDIN_FILENO, &orig_termios);
-  atexit(disableRawMode);
+    atexit(disableRawMode);
 
   
-  struct termios raw = orig_termios;
-  raw.c_lflag &= ~(ECHO|ICANON);
+    struct termios raw = orig_termios;
 
-  tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+    //what does this line mean?
+    //TODO: look up bitwise operators
+    //Why seperate statements here? 
+    // ECHO, ICANON, ISIG, IXON are all from termios.h
+
+ 
+    raw.c_lflag &= ~(BRKINT| ICRNL | INPCK| ISTRIP|IXON);
+    raw.c_oflag &= ~(OPOST);
+    raw.c_cflag |= (CS8);
+    raw.c_lflag &= ~(ECHO | ICANON |IEXTEN| ISIG);
+    raw.c_cc[VMIN] = 0;
+    raw.c_cc[VTIME] = 1;
+
+    
+
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die ("tcsetattr");
+}
+
+
+char editorReadKey(){
+    int nread;
+    char c;
+
+    while ((nread = read(STDIN_FILENO,&c,1)) != 1){
+        if (nread == -1 && errno != EAGAIN) die("read");
+    }
+    return c;
+}
+
+void editorProcessKeypress(){
+    char c = editorReadKey();
+
+    switch(c){
+        case CTRL_KEY('q'):
+            exit(0);
+            break;
+    }
 }
 
 
 
-
-
+/*** init ***/
 
 int main(){
 
-  
-  enableRawMode();
-  
-  char c;
-  while (read(STDIN_FILENO,&c, 1) == 1 && c != 'q');  
-  return 0;
+    enableRawMode();
+
+
+    while(1){
+        editorProcessKeypress();
+    }
+    return 0;
 }
 
 
