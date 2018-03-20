@@ -34,10 +34,8 @@ void enableRawMode(){
         die("tscetattr");
     }
  
-
     atexit(disableRawMode);
 
-  
     struct termios raw = orig_termios;
 
     //what does this line mean?
@@ -45,7 +43,6 @@ void enableRawMode(){
     //Why seperate statements here? 
     // ECHO, ICANON, ISIG, IXON are all from termios.h
 
- 
     raw.c_lflag &= ~(BRKINT| ICRNL | INPCK| ISTRIP|IXON);
     raw.c_oflag &= ~(OPOST);
     raw.c_cflag |= (CS8);
@@ -53,11 +50,18 @@ void enableRawMode(){
     raw.c_cc[VMIN] = 0;
     raw.c_cc[VTIME] = 1;
 
-    
-
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die ("tcsetattr");
 }
 
+
+/*** output ***/
+
+void editorRefreshScreen(){
+    write(STDOUT_FILENO, "\x1b[2J]",4);
+}
+
+
+/*** input ***/
 
 char editorReadKey(){
     int nread;
@@ -89,6 +93,7 @@ int main(){
 
 
     while(1){
+        editorRefreshScreen();
         editorProcessKeypress();
     }
     return 0;
